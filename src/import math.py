@@ -2,6 +2,7 @@ import math
 import matplotlib.pyplot as plt
 import numpy as np
 import os
+from scipy import stats   # для линейной регрессии
 
 # Данные из протокола
 L1 = [10, 20, 30, 40, 50]
@@ -43,7 +44,7 @@ U1_err, S1_err = compute_errors(L1, U1, S1)
 U2_err, S2_err = compute_errors(L2, U2, S2)
 U3_err, S3_err = compute_errors(L3, U3, S3)
 
-# Чтобы погрешности были одинаковыми для всех точек, возьмём средние значения
+# Одинаковые погрешности (средние)
 U1_err_mean = np.mean(U1_err)
 S1_err_mean = np.mean(S1_err)
 U2_err_mean = np.mean(U2_err)
@@ -55,44 +56,77 @@ S3_err_mean = np.mean(S3_err)
 os.makedirs("output", exist_ok=True)
 os.makedirs("figures", exist_ok=True)
 
-# Построение графиков с линиями и одинаковыми погрешностями
-# График 1: ПВО
+# ---------- График 1: ПВО (с линейной регрессией и доверительной полосой) ----------
 plt.figure(figsize=(8,5))
-plt.errorbar(U1, S1, xerr=U1_err_mean, yerr=S1_err_mean, fmt='bo-',
-             markersize=4, markeredgewidth=0.5, capsize=4, ecolor='red', 
-             label='ПВО')
+plt.errorbar(U1, S1, xerr=U1_err_mean, yerr=S1_err_mean, fmt='bo',
+             markersize=4, markeredgewidth=0.5, capsize=4, ecolor='red',
+             label='Экспериментальные точки')
+
+# Линейная регрессия (МНК)
+slope1, intercept1, r_value1, p_value1, std_err1 = stats.linregress(U1, S1)
+U_fit = np.linspace(min(U1), max(U1), 100)
+S_fit1 = slope1 * U_fit + intercept1
+plt.plot(U_fit, S_fit1, 'b-', linewidth=1.5, label=f'Линейная регрессия: S = {slope1:.3f}·U + {intercept1:.3f}')
+
+# Доверительный интервал для среднего (95%)
+n1 = len(U1)
+residuals1 = np.array(S1) - (slope1 * np.array(U1) + intercept1)
+s_err1 = np.sqrt(np.sum(residuals1**2) / (n1-2))
+mean_U1 = np.mean(U1)
+t_val1 = stats.t.ppf(0.975, n1-2)   # 95% доверительный интервал
+se_fit1 = s_err1 * np.sqrt(1/n1 + (U_fit - mean_U1)**2 / np.sum((np.array(U1)-mean_U1)**2))
+ci1 = t_val1 * se_fit1
+plt.fill_between(U_fit, S_fit1 - ci1, S_fit1 + ci1, color='blue', alpha=0.2, label='95% доверительный интервал')
+
 plt.xlabel('U_eff, В')
 plt.ylabel('S, мм/В')
 plt.title('Чувствительность пластин вертикального отклонения')
 plt.grid(True)
+plt.legend()
 plt.savefig('figures/sensitivity_PVO.png', dpi=300)
 plt.show()
 
-# График 2: ПГО
+# ---------- График 2: ПГО (с линейной регрессией и доверительной полосой) ----------
 plt.figure(figsize=(8,5))
-plt.errorbar(U2, S2, xerr=U2_err_mean, yerr=S2_err_mean, fmt='ro-',
-             markersize=4, markeredgewidth=0.5, capsize=4, ecolor='red', 
-             label='ПГО')
+plt.errorbar(U2, S2, xerr=U2_err_mean, yerr=S2_err_mean, fmt='ro',
+             markersize=4, markeredgewidth=0.5, capsize=4, ecolor='red',
+             label='Экспериментальные точки')
+
+slope2, intercept2, r_value2, p_value2, std_err2 = stats.linregress(U2, S2)
+S_fit2 = slope2 * U_fit + intercept2
+plt.plot(U_fit, S_fit2, 'r-', linewidth=1.5, label=f'Линейная регрессия: S = {slope2:.3f}·U + {intercept2:.3f}')
+
+n2 = len(U2)
+residuals2 = np.array(S2) - (slope2 * np.array(U2) + intercept2)
+s_err2 = np.sqrt(np.sum(residuals2**2) / (n2-2))
+mean_U2 = np.mean(U2)
+t_val2 = stats.t.ppf(0.975, n2-2)
+se_fit2 = s_err2 * np.sqrt(1/n2 + (U_fit - mean_U2)**2 / np.sum((np.array(U2)-mean_U2)**2))
+ci2 = t_val2 * se_fit2
+plt.fill_between(U_fit, S_fit2 - ci2, S_fit2 + ci2, color='red', alpha=0.2, label='95% доверительный интервал')
+
 plt.xlabel('U_eff, В')
 plt.ylabel('S, мм/В')
 plt.title('Чувствительность пластин горизонтального отклонения')
 plt.grid(True)
+plt.legend()
 plt.savefig('figures/sensitivity_PGO.png', dpi=300)
 plt.show()
 
-# График 3: максимальная чувствительность
+# ---------- График 3: максимальная чувствительность (без регрессии, только точки) ----------
 plt.figure(figsize=(8,5))
-plt.errorbar(U3, S3, xerr=U3_err_mean, yerr=S3_err_mean, fmt='go-',
-             markersize=4, markeredgewidth=0.5, capsize=4, ecolor='red', 
+plt.errorbar(U3, S3, xerr=U3_err_mean, yerr=S3_err_mean, fmt='go',
+             markersize=4, markeredgewidth=0.5, capsize=4, ecolor='red',
              label='max S')
 plt.xlabel('U_eff, В')
 plt.ylabel('S, мм/В')
 plt.title('Максимальная чувствительность осциллографа')
 plt.grid(True)
+plt.legend()
 plt.savefig('figures/sensitivity_max.png', dpi=300)
 plt.show()
 
-# Генерация LaTeX-таблиц (без изменений)
+# ---------- Генерация LaTeX-таблиц (без изменений) ----------
 def write_latex_table(filename, caption, label, headers, data_rows):
     with open(f"output/{filename}", 'w', encoding='utf-8') as f:
         f.write("\\begin{table}[h]\n\\centering\n")
